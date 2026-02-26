@@ -1,6 +1,6 @@
 function setup()
     default({
-        recipe = "Recipe",
+        recipe = Recipe.new,
         repository = "https://github.com/mbenoukaiss/ettac.git",
         keep_releases = 3,
         persistent_files = { ".env" },
@@ -11,9 +11,9 @@ function setup()
         hostname = "127.0.0.1",
         port = 22,
         user = "admin",
-        key = env("SSH_PRIVATE_KEY"),
+        private_key = env("SSH_PRIVATE_KEY"),
         path = "/var/www/ettac",
-        labels = { stage = "prod" },
+        labels = { "prod" },
 
         -- override or extend defaults as needed
         keep_releases = 5,
@@ -25,7 +25,7 @@ function setup()
         user = "admin",
         password = env("REMOTE_PASSWORD"), -- pulls from env
         path = "/var/www/ettac",
-        labels = { stage = "staging" },
+        labels = { "staging" },
 
         -- override or extend defaults as needed
         keep_releases = 5,
@@ -33,6 +33,10 @@ function setup()
 end
 
 Recipe = {}
+
+function Recipe:new()
+    return setmetatable({}, self)
+end
 
 function Recipe:doctrine_setup()
     remote("runs the command on the server")
@@ -43,10 +47,10 @@ function Recipe:doctrine_post_migrations()
 end
 
 function Recipe:build_frontend_assets()
-    timeout(5400)
+    set_timeout(5400)
 
     self("npm install")
-    setup("node_modules") -- optionally provide a second argument to tell remote directory
+    send("node_modules") -- optionally provide a second argument to tell remote directory
     remote("yarn build")
 end
 
@@ -57,25 +61,34 @@ end
 function Recipe:describe()
     task(Recipe.doctrine_setup)
 
-    use(Symfony)
-    use(Crontab)
+    local system = System:new()
 
-    after(Symfony.doctrine_migrations, Recipe.build_frontend_assets)
-    after(Crontab.doctrine_migrations, Recipe.doctrine_post_migrations)
-    remove(Symfony.supervisor_restart)
+    local symfony = Symfony:new({
+        version = "7.4",
+    })
 
-    wrap(Symfony.doctrine_migrations, function(inner)
+    local crontab = Crontab:new({
+        { "0 0 * * *", "php bin/console app:imports" },
+    })
+
+    use(system)
+    use(symfony)
+    use(crontab)
+
+    after(symfony.doctrine_migrations, symfony.build_frontend_assets)
+    after(crontab.setup, self.doctrine_post_migrations)
+    remove(symfony.supervisor_restart)
+
+    wrap(symfony.doctrine_migrations, function(inner)
         print("Printing before")
         inner()
         print("Printing after!")
     end)
 
-    catch(tasks.doctrine_setup, function()
+    catch(self.doctrine_setup, function()
         print("Database is already setup");
         continue(); -- resumes execution after a task failure
     end)
 
-    after(System.fail, Recipe.send_email)
+    after(system.fail, self.send_email)
 end
-
-return Recipe

@@ -2,10 +2,13 @@ mod config;
 pub mod library;
 mod runners;
 mod error;
+mod context;
 
+use std::rc::Rc;
 pub use error::Error;
 
 use crate::config::Config;
+use crate::context::Context;
 use crate::runners::{LuaRunner, Runner};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -15,8 +18,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut runner = LuaRunner::new(config);
     runner.init()?;
 
-    let hosts = runner.get_hosts()?;
+    let mut hosts = runner.get_hosts()?;
     println!("{:#?}", hosts);
+
+    let context = Context {
+        host: hosts.remove("prod").unwrap(),
+    };
+
+    runner.run(Rc::new(context))?;
 
     Ok(())
 }

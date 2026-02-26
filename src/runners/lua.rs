@@ -1,11 +1,14 @@
 use crate::config::Config;
+use crate::context::{Callable, Context, Host, Ssh, SshCredential};
 use crate::error::Error;
-use crate::runners::{Hosts, Runner, Unknown};
+use crate::runners::Runner;
 use mlua::prelude::{LuaError, LuaTable};
-use mlua::{IntoLua, Lua, Value};
+use mlua::{Function, IntoLua, Lua, Value};
 use std::collections::HashMap;
 use std::path::Path;
-use std::{env, fs};
+use std::fs;
+use std::rc::Rc;
+use crate::library;
 
 pub struct LuaRunner {
     lua: Lua,
@@ -26,23 +29,19 @@ impl Runner for LuaRunner {
         let lua = &mut self.lua;
         let globals = lua.globals();
 
-        let env_fn = lua.create_function_mut(|lua, (name, default): (String, Value)| {
-            if let Ok(value) = env::var(&name) {
-                value.into_lua(&lua)
-            } else {
-                Ok(default)
-            }
+        let script = get_script(self.config);
+        lua.load(script).set_name(&self.config.script).exec()?;
+
+        let env_fn = self.lua.create_function(|lua, (name, default): (String, Option<String>)| {
+            library::env(&name, default).into_lua(lua)
         })?;
 
         globals.set("env", env_fn)?;
 
-        let script = get_script(self.config);
-        lua.load(script).set_name(&self.config.script).exec()?;
-
         Ok(())
     }
 
-    fn get_hosts(&mut self) -> Result<Hosts, Error> {
+    fn get_hosts(&mut self) -> Result<HashMap<String, Host>, Error> {
         let lua = &mut self.lua;
         let globals = lua.globals();
         globals.set("defaults", lua.create_table()?)?;
@@ -74,19 +73,114 @@ impl Runner for LuaRunner {
 
         lua.load("setup()").exec()?;
 
-        let defaults = globals.get::<Option<LuaTable>>("defaults")?;
+        let defaults = if let Ok(table) = globals.get::<LuaTable>("defaults") {
+            table
+        } else {
+            lua.create_table()?
+        };
 
-        let mut hosts = HashMap::new();
-        for pair in globals
-            .get::<LuaTable>("hosts")?
-            .pairs::<String, LuaTable>()
-        {
+        let default_recipe = defaults.get::<Option<Function>>("recipe")?;
+        let default_repository = defaults.get::<Option<String>>("repository")?;
+        let default_keep_releases = defaults.get::<Option<i8>>("keep_releases")?;
+        let default_persistent_files = defaults.get::<Option<Vec<String>>>("persistent_files")?;
+        let default_persistent_dirs = defaults.get::<Option<Vec<String>>>("persistent_dirs")?;
+        let default_labels = defaults.get::<Option<Vec<String>>>("labels")?;
+
+        let default_hostname = defaults.get::<Option<String>>("hostname")?;
+        let default_port = defaults.get::<Option<u16>>("port")?;
+        let default_user = defaults.get::<Option<String>>("user")?;
+        let default_private_key = defaults.get::<Option<String>>("private_key")?;
+        let default_password = defaults.get::<Option<String>>("password")?;
+        let default_path = defaults.get::<Option<String>>("path")?;
+
+        let hosts = globals.get::<LuaTable>("hosts")?;
+
+        let mut parsed_hosts = HashMap::new();
+        for pair in hosts.pairs::<String, LuaTable>() {
             let (name, value) = pair?;
 
-            hosts.insert(name, parse_map(&value, defaults.as_ref())?);
+            let recipe = value.get::<Option<Function>>("recipe")?;
+            let repository = value.get::<Option<String>>("repository")?;
+            let keep_releases = value.get::<Option<i8>>("keep_releases")?;
+            let persistent_files = value.get::<Option<Vec<String>>>("persistent_files")?;
+            let persistent_dirs = value.get::<Option<Vec<String>>>("persistent_dirs")?;
+            let labels = value.get::<Option<Vec<String>>>("labels")?;
+
+            let hostname = value.get::<Option<String>>("hostname")?;
+            let port = value.get::<Option<u16>>("port")?;
+            let user = value.get::<Option<String>>("user")?;
+            let private_key = value.get::<Option<String>>("private_key")?;
+            let password = value.get::<Option<String>>("password")?;
+            let path = value.get::<Option<String>>("path")?;
+
+            let hostname = hostname.or(default_hostname.clone());
+            let port = port.or(default_port.clone()).unwrap_or(22);
+            let user = user.or(default_user.clone());
+            let private_key = private_key.or(default_private_key.clone());
+            let password = password.or(default_password.clone());
+
+            let has_ssh_arguments =
+                hostname.is_some() || user.is_some() || private_key.is_some() || password.is_some();
+            let not_all_ssh_arguments = hostname.is_none()
+                || user.is_none()
+                || (private_key.is_none() && password.is_none());
+            if has_ssh_arguments && not_all_ssh_arguments {
+                return Err(Error::config(
+                    "hostname, user and private_key or password must be set together",
+                ));
+            }
+
+            let ssh = if has_ssh_arguments {
+                Some(Ssh {
+                    hostname: hostname.unwrap(),
+                    port,
+                    user: user.unwrap(),
+                    credential: if private_key.is_some() {
+                        SshCredential::PrivateKey(private_key.unwrap())
+                    } else {
+                        SshCredential::Password(password.unwrap())
+                    },
+                })
+            } else {
+                None
+            };
+
+            let host = Host {
+                recipe: Box::new(LuaFunction(
+                    recipe
+                        .or(default_recipe.clone())
+                        .ok_or_else(|| Error::config("recipe is required"))?,
+                )),
+                repository: repository
+                    .or(default_repository.clone())
+                    .ok_or_else(|| Error::config("repository is required"))?,
+                keep_releases: keep_releases.or(default_keep_releases).unwrap_or(3),
+                persistent_files: persistent_files
+                    .or(default_persistent_files.clone())
+                    .unwrap_or_default(),
+                persistent_dirs: persistent_dirs
+                    .or(default_persistent_dirs.clone())
+                    .unwrap_or_default(),
+                labels: labels.or(default_labels.clone()).unwrap_or_default(),
+                ssh,
+                path: path
+                    .or(default_path.clone())
+                    .ok_or_else(|| Error::config("path is required"))?,
+            };
+
+            parsed_hosts.insert(name, host);
         }
 
-        Ok(hosts)
+        Ok(parsed_hosts)
+    }
+
+    fn run(&mut self, ctx: Rc<Context>) -> Result<(), Error> {
+        let lua = &mut self.lua;
+        let globals = lua.globals();
+
+        //TODO: populate functions
+
+        Ok(())
     }
 }
 
@@ -97,77 +191,6 @@ fn get_script(args: &Config) -> String {
     }
 
     fs::read_to_string(script_path).unwrap()
-}
-
-pub fn parse_map(
-    table: &LuaTable,
-    defaults: Option<&LuaTable>,
-) -> Result<HashMap<String, Unknown>, LuaError> {
-    parse_map_into(table, defaults, HashMap::new())
-}
-
-pub fn parse_vec(table: &LuaTable) -> Result<Vec<Unknown>, LuaError> {
-    let mut vec = Vec::new();
-    for i in 0..table.len()? {
-        vec.push(parse_value(table.get::<Value>(i)?, None)?);
-    }
-
-    Ok(vec)
-}
-
-fn parse_map_into(
-    table: &LuaTable,
-    defaults: Option<&LuaTable>,
-    mut out: HashMap<String, Unknown>,
-) -> Result<HashMap<String, Unknown>, LuaError> {
-    let sources = [defaults, Some(table)];
-    for table in sources.iter().filter_map(|t| *t) {
-        for pair in table.pairs::<String, Value>() {
-            let (key, value) = pair?;
-
-            out.insert(key, parse_value(value, defaults)?);
-        }
-    }
-
-    Ok(out)
-}
-
-fn is_array(table: &LuaTable) -> bool {
-    let mut i = 0;
-    for pair in table.pairs::<Value, Value>() {
-        if pair.is_err() || table.get::<Value>(i).is_err() {
-            return false;
-        }
-
-        i += 1;
-    }
-
-    true
-}
-
-fn parse_value(value: Value, defaults: Option<&LuaTable>) -> Result<Unknown, LuaError> {
-    let parsed = if value.is_null() || value.is_nil() {
-        Unknown::None
-    } else if value.is_integer() {
-        Unknown::Int(value.as_i32().unwrap())
-    } else if value.is_boolean() {
-        Unknown::Boolean(value.as_boolean().unwrap())
-    } else if value.is_number() {
-        Unknown::Float(value.as_f32().unwrap())
-    } else if value.is_string() {
-        Unknown::String(value.as_string().unwrap().to_string_lossy())
-    } else if value.is_table() {
-        let table = value.as_table().unwrap();
-        if is_array(table) {
-            Unknown::Vec(parse_vec(table)?)
-        } else {
-            Unknown::Map(parse_map(table, defaults)?)
-        }
-    } else {
-        panic!("Unparsable value {:?}", value);
-    };
-
-    Ok(parsed)
 }
 
 fn merge_tables(lua: &Lua, a: &LuaTable, b: &LuaTable) -> Result<LuaTable, LuaError> {
@@ -203,4 +226,30 @@ fn merge_tables(lua: &Lua, a: &LuaTable, b: &LuaTable) -> Result<LuaTable, LuaEr
     }
 
     Ok(out)
+}
+
+fn is_array(table: &LuaTable) -> bool {
+    let mut i = 1;
+    for pair in table.pairs::<Value, Value>() {
+        if pair.is_err() || table.get::<Value>(i).is_err() {
+            return false;
+        }
+
+        i += 1;
+    }
+
+    let Ok(len) = table.len() else {
+        return false;
+    };
+
+    i == len + 1
+}
+
+#[derive(Debug)]
+struct LuaFunction(Function);
+
+impl Callable for LuaFunction {
+    fn call(&self) -> Result<(), Error> {
+        Ok(self.0.call(())?)
+    }
 }
