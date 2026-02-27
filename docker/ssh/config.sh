@@ -29,9 +29,9 @@ else
 fi
 
 if [ -n "$PASSWORD" ]; then
-    echo "$USERNAME:$PASSWORD" | chpasswd
+    echo "$USERNAME:$PASSWORD" | chpasswd 2>/dev/null
 else
-    echo "$USERNAME:!" | chpasswd
+    echo "$USERNAME:!" | chpasswd 2>/dev/null
 
     mkdir -p $HOME/.ssh
     echo "$PUBLIC_KEY" > $HOME/.ssh/authorized_keys

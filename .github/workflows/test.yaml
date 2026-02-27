@@ -1,8 +1,12 @@
+name: Tests
+
 on:
   push:
   pull_request:
 
 env:
+  CARGO_TERM_COLOR: always
+
   ALICE_USERNAME: alice
   ALICE_PASSWORD: y0zHDHwv3X31
   BOB_USERNAME: bob
@@ -17,8 +21,28 @@ env:
     -----END OPENSSH PRIVATE KEY-----
 
 jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Load cache
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build binaries
+        run: cargo build
+
   ssh-image:
     name: ssh
+    needs: [ build ]
     uses: ./.github/workflows/build.yaml
     permissions:
       contents: read
@@ -31,6 +55,7 @@ jobs:
 
   ettac-image:
     name: ettac
+    needs: [ build ]
     uses: ./.github/workflows/build.yaml
     permissions:
       contents: read
@@ -44,8 +69,8 @@ jobs:
         Cargo.lock
         src/**/*.rs
 
-  integration-tests:
-    name: Integration tests
+  test-image:
+    name: Test image
     runs-on: ubuntu-latest
     needs: [ ssh-image, ettac-image ]
 
@@ -78,7 +103,7 @@ jobs:
           timeout 120s sh -c 'until nc -z localhost 7022; do sleep 0.1; done'
           timeout 120s sh -c 'until nc -z localhost 7122; do sleep 0.1; done'
 
-      - name: Recipe symfony.lua
+      - name: Run a recipe
         run: |
           docker run --rm \
             --network host \
@@ -87,4 +112,70 @@ jobs:
             --env PASSWORD="${{ env.ALICE_PASSWORD }}" \
             --env PRIVATE_KEY="${{ env.BOB_PRIVATE_KEY }}" \
             ghcr.io/${{ github.repository }}:${{ needs.ettac-image.outputs.tag }} \
-            examples/symfony.lua
+            examples/empty.lua
+
+  tests:
+    name: Tests
+    runs-on: ubuntu-latest
+    needs: [ build ]
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Load cache
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Run tests
+        run: cargo test
+
+  integration:
+    name: Integration tests
+    runs-on: ubuntu-latest
+    needs: [ ssh-image ]
+
+    services:
+      alice:
+        image: ghcr.io/${{ github.repository }}:${{ needs.ssh-image.outputs.tag }}
+        credentials:
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+        ports: [ 7022:22 ]
+        env:
+          USERNAME: ${{ env.ALICE_USERNAME }}
+          PASSWORD: ${{ env.ALICE_PASSWORD }}
+
+      bob:
+        image: ghcr.io/${{ github.repository }}:${{ needs.ssh-image.outputs.tag }}
+        credentials:
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+        ports: [ 7122:22 ]
+        env:
+          USERNAME: ${{ env.BOB_USERNAME }}
+          PUBLIC_KEY: ${{ env.BOB_PUBLIC_KEY }}
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Wait for SSH servers
+        run: |
+          timeout 120s sh -c 'until nc -z localhost 7022; do sleep 0.1; done'
+          timeout 120s sh -c 'until nc -z localhost 7122; do sleep 0.1; done'
+
+      - name: Load cache
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Run tests
+        run: cargo test --features integration

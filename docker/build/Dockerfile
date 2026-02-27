@@ -3,11 +3,11 @@ FROM rust:1.93-alpine AS builder
 WORKDIR /app
 
 RUN apk add --no-cache musl-dev openssl-dev openssl-libs-static build-base pkgconfig upx
-COPY ../../Cargo.toml Cargo.lock ./
+COPY Cargo.toml Cargo.lock ./
 
 RUN cargo fetch --locked
 
-COPY ../../src ./src
+COPY src ./src
 
 RUN MUSL_TARGET="$(rustc -vV | sed -n 's/^host: //p')" && \
     CARGO_INCREMENTAL=0 \

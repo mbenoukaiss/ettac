@@ -10,25 +10,21 @@ function setup()
     host("prod", {
         hostname = "127.0.0.1",
         port = 22,
-        user = "admin",
+        user = "bob",
         private_key = env("PRIVATE_KEY"),
         path = "/var/www/ettac",
         labels = { "prod" },
 
-        -- override or extend defaults as needed
         keep_releases = 5,
     })
 
     host("staging", {
         hostname = "127.0.0.2",
         port = 22,
-        user = "admin",
-        password = env("PASSWORD"), -- pulls from env
+        user = "alice",
+        password = env("PASSWORD"),
         path = "/var/www/ettac",
         labels = { "staging" },
-
-        -- override or extend defaults as needed
-        keep_releases = 5,
     })
 end
 

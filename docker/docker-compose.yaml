@@ -1,3 +1,5 @@
+name: ettac
+
 services:
   with-password:
     container_name: with-password
