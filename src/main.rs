@@ -1,11 +1,12 @@
 mod config;
+mod context;
+mod error;
 pub mod library;
 mod runners;
-mod error;
-mod context;
+mod ssh;
 
-use std::rc::Rc;
 pub use error::Error;
+use std::rc::Rc;
 
 use crate::config::Config;
 use crate::context::Context;
@@ -20,6 +21,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut hosts = runner.get_hosts()?;
     println!("{:#?}", hosts);
+
+    for host in &config.host {
+        if !hosts.contains_key(host) {
+            panic!("Host {} not found", host);
+        }
+    }
+
+    for host in &config.host {
+        let host = hosts.remove(host).unwrap();
+
+        if let Some(ssh) = &host.ssh {
+            let ssh = ssh::login(ssh)?;
+        }
+    }
 
     let context = Context {
         host: hosts.remove("prod").unwrap(),

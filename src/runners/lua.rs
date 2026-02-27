@@ -1,5 +1,5 @@
 use crate::config::Config;
-use crate::context::{Callable, Context, Host, Ssh, SshCredential};
+use crate::context::{Callable, Context, Host, SshCredentials, AuthMethod};
 use crate::error::Error;
 use crate::runners::Runner;
 use mlua::prelude::{LuaError, LuaTable};
@@ -131,14 +131,14 @@ impl Runner for LuaRunner {
             }
 
             let ssh = if has_ssh_arguments {
-                Some(Ssh {
+                Some(SshCredentials {
                     hostname: hostname.unwrap(),
                     port,
                     user: user.unwrap(),
                     credential: if private_key.is_some() {
-                        SshCredential::PrivateKey(private_key.unwrap())
+                        AuthMethod::PrivateKey(private_key.unwrap())
                     } else {
-                        SshCredential::Password(password.unwrap())
+                        AuthMethod::Password(password.unwrap())
                     },
                 })
             } else {

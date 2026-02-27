@@ -15,20 +15,20 @@ pub struct Host {
     pub persistent_dirs: Vec<String>,
     pub labels: Vec<String>,
 
-    pub ssh: Option<Ssh>,
+    pub ssh: Option<SshCredentials>,
     pub path: String,
 }
 
 #[derive(Clone, Debug)]
-pub struct Ssh {
+pub struct SshCredentials {
     pub hostname: String,
     pub port: u16,
     pub user: String,
-    pub credential: SshCredential,
+    pub credential: AuthMethod,
 }
 
 #[derive(Clone, Debug)]
-pub enum SshCredential {
+pub enum AuthMethod {
     Password(String),
     PrivateKey(String),
 }
