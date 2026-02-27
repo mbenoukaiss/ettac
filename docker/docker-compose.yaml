@@ -1,0 +1,22 @@
+services:
+  with-password:
+    container_name: with-password
+    image: ssh:latest
+    pull_policy: build
+    build:
+      context: ssh
+    ports: ["7022:22"]
+    environment:
+      USERNAME: "alice"
+      PASSWORD: "y0zHDHwv3X31"
+
+  with-public-key:
+    container_name: with-public-key
+    image: ssh:latest
+    pull_policy: build
+    build:
+      context: ssh
+    ports: ["7122:22"]
+    environment:
+      USERNAME: "bob"
+      PUBLIC_KEY: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPRgyyIHNEGfvPNalw6Urpdrdn1BDSTucYu2lYOSvG3D"
