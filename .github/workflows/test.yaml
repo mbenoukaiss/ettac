@@ -1,0 +1,90 @@
+on:
+  push:
+  pull_request:
+
+env:
+  ALICE_USERNAME: alice
+  ALICE_PASSWORD: y0zHDHwv3X31
+  BOB_USERNAME: bob
+  BOB_PUBLIC_KEY: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPRgyyIHNEGfvPNalw6Urpdrdn1BDSTucYu2lYOSvG3D
+  BOB_PRIVATE_KEY: >
+    -----BEGIN OPENSSH PRIVATE KEY-----
+    b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW
+    QyNTUxOQAAACD0YMsiBzRBn7zzWpcOlK6Xa3Z9QQ0k7nGLtpWDkrxtwwAAAIhMQuxTTELs
+    UwAAAAtzc2gtZWQyNTUxOQAAACD0YMsiBzRBn7zzWpcOlK6Xa3Z9QQ0k7nGLtpWDkrxtww
+    AAAEA9o3+2y5bV1iyEBsD6clPCJlz66zOEmgOW9KOEqb82fPRgyyIHNEGfvPNalw6Urpdr
+    dn1BDSTucYu2lYOSvG3DAAAAA2JvYgEC
+    -----END OPENSSH PRIVATE KEY-----
+
+jobs:
+  ssh-image:
+    name: ssh
+    uses: ./.github/workflows/build.yaml
+    permissions:
+      contents: read
+      packages: write
+    secrets: inherit
+    with:
+      prefix: ssh
+      context: docker/ssh
+      dockerfile: docker/ssh/Dockerfile
+
+  ettac-image:
+    name: ettac
+    uses: ./.github/workflows/build.yaml
+    permissions:
+      contents: read
+      packages: write
+    secrets: inherit
+    with:
+      prefix: ettac
+      context: .
+      dockerfile: docker/build/Dockerfile
+      paths: |
+        Cargo.lock
+        src/**/*.rs
+
+  integration-tests:
+    name: Integration tests
+    runs-on: ubuntu-latest
+    needs: [ ssh-image, ettac-image ]
+
+    services:
+      alice:
+        image: ghcr.io/${{ github.repository }}:${{ needs.ssh-image.outputs.tag }}
+        credentials:
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+        ports: [ 7022:22 ]
+        env:
+          USERNAME: ${{ env.ALICE_USERNAME }}
+          PASSWORD: ${{ env.ALICE_PASSWORD }}
+
+      bob:
+        image: ghcr.io/${{ github.repository }}:${{ needs.ssh-image.outputs.tag }}
+        credentials:
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+        ports: [ 7122:22 ]
+        env:
+          USERNAME: ${{ env.BOB_USERNAME }}
+          PUBLIC_KEY: ${{ env.BOB_PUBLIC_KEY }}
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Wait for SSH servers
+        run: |
+          timeout 120s sh -c 'until nc -z localhost 7022; do sleep 0.1; done'
+          timeout 120s sh -c 'until nc -z localhost 7122; do sleep 0.1; done'
+
+      - name: Recipe symfony.lua
+        run: |
+          docker run --rm \
+            --network host \
+            --volume $(pwd):/app \
+            --workdir /app \
+            --env PASSWORD="${{ env.ALICE_PASSWORD }}" \
+            --env PRIVATE_KEY="${{ env.BOB_PRIVATE_KEY }}" \
+            ghcr.io/${{ github.repository }}:${{ needs.ettac-image.outputs.tag }} \
+            examples/symfony.lua

@@ -11,7 +11,7 @@ function setup()
         hostname = "127.0.0.1",
         port = 22,
         user = "admin",
-        private_key = env("SSH_PRIVATE_KEY"),
+        private_key = env("PRIVATE_KEY"),
         path = "/var/www/ettac",
         labels = { "prod" },
 
@@ -23,7 +23,7 @@ function setup()
         hostname = "127.0.0.2",
         port = 22,
         user = "admin",
-        password = env("REMOTE_PASSWORD"), -- pulls from env
+        password = env("PASSWORD"), -- pulls from env
         path = "/var/www/ettac",
         labels = { "staging" },
 

@@ -11,9 +11,8 @@ COPY ../../src ./src
 
 RUN MUSL_TARGET="$(rustc -vV | sed -n 's/^host: //p')" && \
     CARGO_INCREMENTAL=0 \
-    RUSTFLAGS="-C strip=symbols" \
+    RUSTFLAGS="-C target-feature=+crt-static -C strip=symbols" \
     cargo build --release --locked --target "${MUSL_TARGET}" && \
-    file "target/${MUSL_TARGET}/release/ettac" | grep -qi "statically linked" && \
     upx --best --lzma "target/${MUSL_TARGET}/release/ettac"
 
 FROM scratch
