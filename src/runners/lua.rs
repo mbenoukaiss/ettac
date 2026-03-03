@@ -38,6 +38,18 @@ impl Runner for LuaRunner {
 
         globals.set("env", env_fn)?;
 
+        let base64_encode = self.lua.create_function(|lua, (value,): (String,)| {
+            library::base64_encode(&value).into_lua(lua)
+        })?;
+
+        globals.set("base64_encode", base64_encode)?;
+
+        let base64_decode = self.lua.create_function(|lua, (value,): (String,)| {
+            library::base64_decode(&value).unwrap().into_lua(lua)
+        })?;
+
+        globals.set("base64_decode", base64_decode)?;
+
         Ok(())
     }
 

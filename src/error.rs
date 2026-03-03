@@ -8,6 +8,7 @@ pub enum Error {
     SetupError(String),
     SshError(String),
     IoError(std::io::Error),
+    Base64Error(String),
 }
 
 impl Error {
@@ -30,6 +31,7 @@ impl Display for Error {
             Error::SetupError(err) => write!(f, "Setup error: {}", err),
             Error::SshError(err) => write!(f, "SSH error: {}", err),
             Error::IoError(err) => write!(f, "IO error: {}", err),
+            Error::Base64Error(err) => write!(f, "Base64 decode error: {}", err),
         }
     }
 }
