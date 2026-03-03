@@ -21,4 +21,4 @@ services:
     ports: ["7122:22"]
     environment:
       USERNAME: "bob"
-      PUBLIC_KEY: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPRgyyIHNEGfvPNalw6Urpdrdn1BDSTucYu2lYOSvG3D"
+      PUBLIC_KEY: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMmZ7gtoEsZDA8DqofQbYnXfKxXUNJsWuOum35x2Yr4C"

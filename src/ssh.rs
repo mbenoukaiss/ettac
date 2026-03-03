@@ -1,26 +1,28 @@
-use std::net::TcpStream;
-use ssh2::Session;
+use libssh_rs::{Session, SshKey, SshOption};
 use crate::context::{AuthMethod, SshCredentials};
 use crate::Error;
 
 pub fn login(cred: &SshCredentials) -> Result<Session, Error> {
-    let tcp = TcpStream::connect((cred.hostname.as_str(), cred.port))?;
-    let mut sess = Session::new()?;
-    sess.set_tcp_stream(tcp);
-    sess.handshake()?;
+    let sess = Session::new()?;
+    sess.set_option(SshOption::Hostname(cred.hostname.clone()))?;
+    sess.set_option(SshOption::Port(cred.port))?;
+    sess.set_option(SshOption::User(Some(cred.user.clone())))?;
+    sess.options_parse_config(None)?;
+    sess.connect()?;
 
     match &cred.credential {
         AuthMethod::Password(password) => {
-            sess.userauth_password(cred.user.as_str(), password)?;
+            sess.userauth_password(None, Some(password))?;
         }
-        AuthMethod::PrivateKey(key) => {
-            sess.userauth_pubkey_memory(cred.user.as_str(), None, key, None)?;
+        AuthMethod::Key(key, passphrase) => {
+            let key = SshKey::from_privkey_base64(key, passphrase.as_ref().map(String::as_str))?;
+
+            sess.userauth_publickey(
+                None,
+                &key,
+            )?;
         }
     };
-
-    if !sess.authenticated() {
-        return Err(Error::ssh("Authentication failed"));
-    }
 
     Ok(sess)
 }

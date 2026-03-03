@@ -40,8 +40,8 @@ impl From<mlua::Error> for Error {
     }
 }
 
-impl From<ssh2::Error> for Error {
-    fn from(value: ssh2::Error) -> Self {
+impl From<libssh_rs::Error> for Error {
+    fn from(value: libssh_rs::Error) -> Self {
         Self::SshError(value.to_string())
     }
 }

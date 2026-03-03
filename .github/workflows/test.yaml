@@ -10,14 +10,14 @@ env:
   ALICE_USERNAME: alice
   ALICE_PASSWORD: y0zHDHwv3X31
   BOB_USERNAME: bob
-  BOB_PUBLIC_KEY: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPRgyyIHNEGfvPNalw6Urpdrdn1BDSTucYu2lYOSvG3D
+  BOB_PUBLIC_KEY: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMmZ7gtoEsZDA8DqofQbYnXfKxXUNJsWuOum35x2Yr4C
   BOB_PRIVATE_KEY: >
     -----BEGIN OPENSSH PRIVATE KEY-----
     b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW
-    QyNTUxOQAAACD0YMsiBzRBn7zzWpcOlK6Xa3Z9QQ0k7nGLtpWDkrxtwwAAAIhMQuxTTELs
-    UwAAAAtzc2gtZWQyNTUxOQAAACD0YMsiBzRBn7zzWpcOlK6Xa3Z9QQ0k7nGLtpWDkrxtww
-    AAAEA9o3+2y5bV1iyEBsD6clPCJlz66zOEmgOW9KOEqb82fPRgyyIHNEGfvPNalw6Urpdr
-    dn1BDSTucYu2lYOSvG3DAAAAA2JvYgEC
+    QyNTUxOQAAACDJme4LaBLGQwPA6qH0G2J13ysV1DSbFrjrpt+cdmK+AgAAAJjlF8fM5RfH
+    zAAAAAtzc2gtZWQyNTUxOQAAACDJme4LaBLGQwPA6qH0G2J13ysV1DSbFrjrpt+cdmK+Ag
+    AAAEBF07KN5z24CX3MeVVUx7F7nF77CwxV4hKwGqRfRwKRlMmZ7gtoEsZDA8DqofQbYnXf
+    KxXUNJsWuOum35x2Yr4CAAAADkNJIGRlcGxveW1lbnRzAQIDBAUGBw==
     -----END OPENSSH PRIVATE KEY-----
 
 jobs:
@@ -55,7 +55,6 @@ jobs:
 
   ettac-image:
     name: ettac
-    needs: [ build ]
     uses: ./.github/workflows/build.yaml
     permissions:
       contents: read
@@ -112,7 +111,8 @@ jobs:
             --env PASSWORD="${{ env.ALICE_PASSWORD }}" \
             --env PRIVATE_KEY="${{ env.BOB_PRIVATE_KEY }}" \
             ghcr.io/${{ github.repository }}:${{ needs.ettac-image.outputs.tag }} \
-            examples/empty.lua
+            examples/empty.lua \
+            --host test
 
   tests:
     name: Tests

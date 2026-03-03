@@ -90,6 +90,7 @@ impl Runner for LuaRunner {
         let default_port = defaults.get::<Option<u16>>("port")?;
         let default_user = defaults.get::<Option<String>>("user")?;
         let default_private_key = defaults.get::<Option<String>>("private_key")?;
+        let default_passphrase = defaults.get::<Option<String>>("passphrase")?;
         let default_password = defaults.get::<Option<String>>("password")?;
         let default_path = defaults.get::<Option<String>>("path")?;
 
@@ -110,6 +111,7 @@ impl Runner for LuaRunner {
             let port = value.get::<Option<u16>>("port")?;
             let user = value.get::<Option<String>>("user")?;
             let private_key = value.get::<Option<String>>("private_key")?;
+            let passphrase = value.get::<Option<String>>("passphrase")?;
             let password = value.get::<Option<String>>("password")?;
             let path = value.get::<Option<String>>("path")?;
 
@@ -117,6 +119,7 @@ impl Runner for LuaRunner {
             let port = port.or(default_port.clone()).unwrap_or(22);
             let user = user.or(default_user.clone());
             let private_key = private_key.or(default_private_key.clone());
+            let passphrase = passphrase.or(default_passphrase.clone());
             let password = password.or(default_password.clone());
 
             let has_ssh_arguments =
@@ -135,8 +138,8 @@ impl Runner for LuaRunner {
                     hostname: hostname.unwrap(),
                     port,
                     user: user.unwrap(),
-                    credential: if private_key.is_some() {
-                        AuthMethod::PrivateKey(private_key.unwrap())
+                    credential: if let Some(private_key) = private_key {
+                        AuthMethod::Key(private_key, passphrase)
                     } else {
                         AuthMethod::Password(password.unwrap())
                     },

@@ -32,15 +32,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let host = hosts.remove(host).unwrap();
 
         if let Some(ssh) = &host.ssh {
-            let ssh = ssh::login(ssh)?;
+            let _ = ssh::login(ssh)?;
         }
+
+        let context = Context {
+            host,
+        };
+
+        runner.run(Rc::new(context))?;
     }
-
-    let context = Context {
-        host: hosts.remove("prod").unwrap(),
-    };
-
-    runner.run(Rc::new(context))?;
 
     Ok(())
 }

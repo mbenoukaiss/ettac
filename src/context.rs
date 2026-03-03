@@ -30,7 +30,7 @@ pub struct SshCredentials {
 #[derive(Clone, Debug)]
 pub enum AuthMethod {
     Password(String),
-    PrivateKey(String),
+    Key(String, Option<String>),
 }
 
 pub trait Callable: Debug {
