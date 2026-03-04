@@ -1,55 +1,47 @@
-use std::fmt::{Display, Formatter};
+use std::sync::Arc;
 use mlua::prelude::LuaError;
+use thiserror::Error as ThisError;
 
-#[derive(Debug)]
+#[derive(ThisError, Debug)]
 pub enum Error {
-    ConfigError(String),
-    LuaError(LuaError),
-    SetupError(String),
-    SshError(String),
-    IoError(std::io::Error),
-    Base64Error(String),
+    #[error("invalid deploy config in setup(): {0}")]
+    SetupError(#[from] SetupError),
+    #[error("script parsing error : {0}")]
+    ScriptParsing(String),
+    #[error("script runtime error : {0}")]
+    ScriptRuntime(LuaError),
+    #[error("ssh error : {0}")]
+    SshError(#[from] libssh_rs::Error),
+    #[error("string `{0}` is not a valid base64 string")]
+    InvalidBase64(String),
+    #[error("io error: {0}")]
+    IoError(#[from] std::io::Error),
 }
 
-impl Error {
-    pub fn config(err: impl Into<String>) -> Self {
-        Self::ConfigError(err.into())
-    }
 
-    pub fn ssh(err: impl Into<String>) -> Self {
-        Self::SshError(err.into())
+#[derive(ThisError, Debug)]
+pub enum SetupError {
+    #[error("recipe is required")]
+    MissingRecipe,
+    #[error("repository is required")]
+    MissingRepository,
+    #[error("path is required")]
+    MissingPath,
+    #[error("missing ssh credentials {0:?}")]
+    MissingCredentials(Vec<&'static str>),
+}
+
+impl From<Error> for LuaError {
+    fn from(err: Error) -> Self {
+        LuaError::ExternalError(Arc::new(err))
     }
 }
 
-impl std::error::Error for Error {}
-
-impl Display for Error {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Error::ConfigError(err) => write!(f, "Configuration error: {}", err),
-            Error::LuaError(err) => write!(f, "Lua error: {}", err),
-            Error::SetupError(err) => write!(f, "Setup error: {}", err),
-            Error::SshError(err) => write!(f, "SSH error: {}", err),
-            Error::IoError(err) => write!(f, "IO error: {}", err),
-            Error::Base64Error(err) => write!(f, "Base64 decode error: {}", err),
+impl From<LuaError> for Error {
+    fn from(mut err: LuaError) -> Self {
+        match err {
+            LuaError::SyntaxError { message, .. } => Error::ScriptParsing(message),
+            err => Error::ScriptRuntime(err),
         }
-    }
-}
-
-impl From<mlua::Error> for Error {
-    fn from(value: LuaError) -> Self {
-        Self::LuaError(value)
-    }
-}
-
-impl From<libssh_rs::Error> for Error {
-    fn from(value: libssh_rs::Error) -> Self {
-        Self::SshError(value.to_string())
-    }
-}
-
-impl From<std::io::Error> for Error {
-    fn from(value: std::io::Error) -> Self {
-        Self::IoError(value)
     }
 }

@@ -12,8 +12,8 @@ pub fn base64_encode(value: &str) -> String {
 }
 
 pub fn base64_decode(value: &str) -> Result<String, Error> {
-    let decoded = BASE64_STANDARD.decode(value).map_err(|_| Error::Base64Error(value.to_string()))?;
-    let string = String::from_utf8(decoded).map_err(|_| Error::Base64Error(value.to_string()))?;
+    let decoded = BASE64_STANDARD.decode(value).map_err(|_| Error::InvalidBase64(value.to_string()))?;
+    let string = String::from_utf8(decoded).map_err(|_| Error::InvalidBase64(value.to_string()))?;
 
     Ok(string)
 }
