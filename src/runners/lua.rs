@@ -95,7 +95,7 @@ impl Runner for LuaRunner {
         Ok(parsed_hosts)
     }
 
-    fn run(&mut self, _: Rc<Context>) -> Result<(), Error> {
+    fn run(&mut self, _: Context) -> Result<(), Error> {
         //TODO: populate functions
 
         Ok(())

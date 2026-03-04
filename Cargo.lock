@@ -187,6 +187,7 @@ dependencies = [
  "predicates",
  "serde",
  "serde_json",
+ "shlex",
  "thiserror 2.0.18",
 ]
 

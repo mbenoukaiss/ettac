@@ -1,5 +1,6 @@
-use std::sync::Arc;
+use crate::access::AccessError;
 use mlua::prelude::LuaError;
+use std::sync::Arc;
 use thiserror::Error as ThisError;
 
 #[derive(ThisError, Debug)]
@@ -18,8 +19,11 @@ pub enum Error {
     InvalidBase64(String),
     #[error("io error: {0}")]
     IoError(#[from] std::io::Error),
+    #[error("unparseable command: {0}")]
+    UnparseableCommand(String),
+    #[error("access error: {0}")]
+    AccessError(#[from] AccessError),
 }
-
 
 #[derive(ThisError, Debug)]
 pub enum SetupError {

@@ -12,15 +12,15 @@ function setup()
         port = 7022,
         user = "alice",
         password = env("PASSWORD"),
-        path = "/var/www/ettac",
+        path = "/",
     })
 
     host("with-public-key", {
         hostname = env("WITH_PUBLIC_KEY_HOSTNAME", "127.0.0.1"),
         port = 7122,
         user = "bob",
-        password = env("PRIVATE_KEY"),
-        path = "/var/www/ettac",
+        private_key = env("PRIVATE_KEY"),
+        path = "/",
     })
 end
 

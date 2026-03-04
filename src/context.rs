@@ -3,10 +3,12 @@ use crate::error::SetupError;
 use partially::Partial;
 use std::fmt::Debug;
 use std::rc::Rc;
+use crate::access::Access;
 
 #[derive(Debug)]
 pub struct Context {
     pub host: Host,
+    pub access: Access,
 }
 
 #[derive(Partial, Debug)]

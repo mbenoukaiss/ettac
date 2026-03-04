@@ -10,6 +10,7 @@ integration = []
 argh = { version = "0.1.14", features = ["help"], default-features = false }
 mlua = { version = "0.11.6", features = ["lua55", "vendored"]}
 libssh-rs = { version = "0.3.6", features = ["vendored"] }
+shlex = "1.3.0"
 base64 = "0.22.1"
 partially = {  version = "0.2.1", features = ["derive"] }
 thiserror = "2.0.18"
