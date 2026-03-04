@@ -1,3 +1,5 @@
+#![feature(try_trait_v2)]
+
 mod access;
 mod config;
 mod context;
@@ -11,10 +13,17 @@ use crate::config::Config;
 use crate::context::{Context, Host};
 use crate::runners::{LuaRunner, Runner};
 
-fn main() -> Result<(), Error> {
+fn main() {
     let config = argh::from_env::<Config>();
     let config = Box::leak(Box::new(config)) as &'static Config;
 
+    if let Err(err) = with_lua(config) {
+        eprintln!("{}", err);
+        std::process::exit(1);
+    }
+}
+
+fn with_lua(config: &'static Config) -> Result<(), Error> {
     let mut runner = LuaRunner::new(config);
     runner.init()?;
 
@@ -27,7 +36,7 @@ fn main() -> Result<(), Error> {
         .collect::<Vec<String>>();
 
     if !unknown_hosts.is_empty() {
-        return Err(Error::UnknownHosts(unknown_hosts));
+        Error::UnknownHosts(unknown_hosts)?
     }
 
     let hosts = hosts

@@ -105,7 +105,7 @@ impl Runner for LuaRunner {
 fn get_script(args: &Config) -> Result<String, Error> {
     let script_path = Path::new(&args.script);
     if !script_path.exists() {
-        panic!("Script {} does not exist", args.script);
+        Error::ScriptNotFound(script_path.to_owned())?
     }
 
     Ok(fs::read_to_string(script_path)?)

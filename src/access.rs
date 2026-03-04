@@ -1,4 +1,5 @@
 use crate::Error;
+use crate::impl_error_try;
 use crate::context::{AuthMethod, SshCredentials};
 use libssh_rs::{Session, SshKey, SshOption};
 use std::fmt::Debug;
@@ -13,6 +14,8 @@ pub enum AccessError {
     #[error("Directory not found")]
     DirectoryNotFound = 1,
 }
+
+impl_error_try!(AccessError);
 
 impl AccessError {
     pub const INTERNAL_ERROR_PREFIX: &'static str = "__ettac_internal_error::";
@@ -97,7 +100,7 @@ impl Access {
                 channel.stderr().read_to_string(&mut stderr)?;
 
                 if AccessError::is(&stderr) {
-                    Err(AccessError::from(&stderr))?;
+                    AccessError::from(&stderr)?
                 }
 
                 Ok(CommandResult {

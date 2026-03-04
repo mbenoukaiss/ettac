@@ -1,4 +1,4 @@
-FROM rust:1.93-alpine AS builder
+FROM rustlang/rust:nightly-alpine AS builder
 
 WORKDIR /app
 
