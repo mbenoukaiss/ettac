@@ -4,10 +4,10 @@ use argh::FromArgs;
 /// Runs an ettac script
 pub struct Config {
     #[argh(positional)]
-    /// path to the script to run
-    pub script: String,
-
-    #[argh(option, short = 'h')]
     /// host(s) to deploy to
-    pub host: Vec<String>,
+    pub hosts: Vec<String>,
+
+    #[argh(option, short = 's', default = "String::from(\"deploy.lua\")")]
+    /// path of the script to run
+    pub script: String,
 }

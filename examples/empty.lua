@@ -7,11 +7,19 @@ function setup()
         persistent_dirs = { "storage" },
     })
 
-    host("test", {
-        hostname = "127.0.0.1",
-        port = 22,
+    host("with-password", {
+        hostname = env("WITH_PASSWORD_HOSTNAME", "127.0.0.1"),
+        port = 7022,
+        user = "alice",
+        password = env("PASSWORD"),
+        path = "/var/www/ettac",
+    })
+
+    host("with-public-key", {
+        hostname = env("WITH_PUBLIC_KEY_HOSTNAME", "127.0.0.1"),
+        port = 7122,
         user = "bob",
-        private_key = env("PRIVATE_KEY"),
+        password = env("PRIVATE_KEY"),
         path = "/var/www/ettac",
     })
 end

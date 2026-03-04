@@ -3,22 +3,67 @@ name: ettac
 services:
   with-password:
     container_name: with-password
-    image: ssh:latest
+    image: ettac-ssh:latest
     pull_policy: build
     build:
       context: ssh
-    ports: ["7022:22"]
+    ports: ["7022:7022"]
     environment:
+      PORT: 7022
       USERNAME: "alice"
       PASSWORD: "y0zHDHwv3X31"
+    healthcheck:
+      test: ["CMD", "nc", "-z", "127.0.0.1", "7022"]
+      interval: 1s
+      timeout: 10s
+      start_period: 1s
+      retries: 10
 
   with-public-key:
     container_name: with-public-key
-    image: ssh:latest
+    image: ettac-ssh:latest
     pull_policy: build
     build:
       context: ssh
-    ports: ["7122:22"]
+    ports: ["7122:7122"]
     environment:
+      PORT: 7122
       USERNAME: "bob"
       PUBLIC_KEY: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMmZ7gtoEsZDA8DqofQbYnXfKxXUNJsWuOum35x2Yr4C"
+    healthcheck:
+      test: ["CMD", "nc", "-z", "127.0.0.1", "7122"]
+      interval: 1s
+      timeout: 10s
+      start_period: 1s
+      retries: 10
+
+  test:
+    container_name: test
+    image: ettac:latest
+    pull_policy: build
+    build:
+      context: ..
+      dockerfile: docker/build/Dockerfile
+    depends_on:
+      with-password:
+        condition: service_healthy
+      with-public-key:
+        condition: service_healthy
+    environment:
+      WITH_PASSWORD_HOSTNAME: with-password
+      WITH_PUBLIC_KEY_HOSTNAME: with-public-key
+      PASSWORD: y0zHDHwv3X31
+      PRIVATE_KEY: >
+        -----BEGIN OPENSSH PRIVATE KEY-----
+        b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW
+        QyNTUxOQAAACDJme4LaBLGQwPA6qH0G2J13ysV1DSbFrjrpt+cdmK+AgAAAJjlF8fM5RfH
+        zAAAAAtzc2gtZWQyNTUxOQAAACDJme4LaBLGQwPA6qH0G2J13ysV1DSbFrjrpt+cdmK+Ag
+        AAAEBF07KN5z24CX3MeVVUx7F7nF77CwxV4hKwGqRfRwKRlMmZ7gtoEsZDA8DqofQbYnXf
+        KxXUNJsWuOum35x2Yr4CAAAADkNJIGRlcGxveW1lbnRzAQIDBAUGBw==
+        -----END OPENSSH PRIVATE KEY-----
+
+    volumes:
+      - ../examples:/examples
+      - ../examples/empty.lua:/deploy.lua
+
+    command: ["with-password", "with-public-key"]

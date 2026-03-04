@@ -74,7 +74,7 @@ jobs:
     needs: [ ssh-image, ettac-image ]
 
     services:
-      alice:
+      with-password:
         image: ghcr.io/${{ github.repository }}:${{ needs.ssh-image.outputs.tag }}
         credentials:
           username: ${{ github.actor }}
@@ -84,7 +84,7 @@ jobs:
           USERNAME: ${{ env.ALICE_USERNAME }}
           PASSWORD: ${{ env.ALICE_PASSWORD }}
 
-      bob:
+      with-public-key:
         image: ghcr.io/${{ github.repository }}:${{ needs.ssh-image.outputs.tag }}
         credentials:
           username: ${{ github.actor }}
@@ -106,13 +106,13 @@ jobs:
         run: |
           docker run --rm \
             --network host \
-            --volume $(pwd):/app \
-            --workdir /app \
+            --volume "$(pwd)/examples:/examples" \
+            --volume "$(pwd)/examples/empty.lua:/deploy.lua" \
             --env PASSWORD="${{ env.ALICE_PASSWORD }}" \
             --env PRIVATE_KEY="${{ env.BOB_PRIVATE_KEY }}" \
             ghcr.io/${{ github.repository }}:${{ needs.ettac-image.outputs.tag }} \
-            examples/empty.lua \
-            --host test
+            \
+            with-password with-public-key
 
   tests:
     name: Tests

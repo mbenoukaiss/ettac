@@ -10,7 +10,8 @@ if [ -z "$PASSWORD" ] && [ -z "$PUBLIC_KEY" ]; then
   exit 2
 fi
 
-ARGS="-o AddressFamily=inet -o GatewayPorts=yes -o AllowAgentForwarding=yes -o AllowTcpForwarding=yes"
+PORT=${PORT:-22}
+ARGS="-p $PORT -o AddressFamily=inet -o GatewayPorts=yes -o AllowAgentForwarding=yes -o AllowTcpForwarding=yes"
 
 if [ -n "$PERMIT_ROOT_LOGIN" ]; then
     ARGS="$ARGS -o PermitRootLogin=$PERMIT_ROOT_LOGIN"

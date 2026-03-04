@@ -4,6 +4,8 @@ use thiserror::Error as ThisError;
 
 #[derive(ThisError, Debug)]
 pub enum Error {
+    #[error("hosts `{0:?}` not found")]
+    UnknownHosts(Vec<String>),
     #[error("invalid deploy config in setup(): {0}")]
     SetupError(#[from] SetupError),
     #[error("script parsing error : {0}")]
@@ -38,7 +40,7 @@ impl From<Error> for LuaError {
 }
 
 impl From<LuaError> for Error {
-    fn from(mut err: LuaError) -> Self {
+    fn from(err: LuaError) -> Self {
         match err {
             LuaError::SyntaxError { message, .. } => Error::ScriptParsing(message),
             err => Error::ScriptRuntime(err),

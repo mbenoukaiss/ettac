@@ -9,7 +9,7 @@ function setup()
 
     host("prod", {
         hostname = "127.0.0.1",
-        port = 22,
+        port = 7122,
         user = "bob",
         private_key = env("PRIVATE_KEY"),
         path = "/var/www/ettac",
@@ -19,8 +19,8 @@ function setup()
     })
 
     host("staging", {
-        hostname = "127.0.0.2",
-        port = 22,
+        hostname = "127.0.0.1",
+        port = 7022,
         user = "alice",
         password = env("PASSWORD"),
         path = "/var/www/ettac",
