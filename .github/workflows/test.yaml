@@ -4,6 +4,10 @@ on:
   push:
   pull_request:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   CARGO_TERM_COLOR: always
 
@@ -21,28 +25,8 @@ env:
     -----END OPENSSH PRIVATE KEY-----
 
 jobs:
-  build:
-    name: Build
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Load cache
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Build binaries
-        run: cargo build
-
   ssh-image:
     name: ssh
-    needs: [ build ]
     uses: ./.github/workflows/build.yaml
     permissions:
       contents: read
@@ -68,51 +52,46 @@ jobs:
         Cargo.lock
         src/**/*.rs
 
-  test-image:
-    name: Test image
+  build:
+    name: Build
     runs-on: ubuntu-latest
-    needs: [ ssh-image, ettac-image ]
-
-    services:
-      with-password:
-        image: ghcr.io/${{ github.repository }}:${{ needs.ssh-image.outputs.tag }}
-        credentials:
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-        ports: [ 7022:22 ]
-        env:
-          USERNAME: ${{ env.ALICE_USERNAME }}
-          PASSWORD: ${{ env.ALICE_PASSWORD }}
-
-      with-public-key:
-        image: ghcr.io/${{ github.repository }}:${{ needs.ssh-image.outputs.tag }}
-        credentials:
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-        ports: [ 7122:22 ]
-        env:
-          USERNAME: ${{ env.BOB_USERNAME }}
-          PUBLIC_KEY: ${{ env.BOB_PUBLIC_KEY }}
 
     steps:
       - uses: actions/checkout@v6
 
-      - name: Wait for SSH servers
-        run: |
-          timeout 120s sh -c 'until nc -z localhost 7022; do sleep 0.1; done'
-          timeout 120s sh -c 'until nc -z localhost 7122; do sleep 0.1; done'
+      - name: Load cache
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Run a recipe
-        run: |
-          docker run --rm \
-            --network host \
-            --volume "$(pwd)/examples:/examples" \
-            --volume "$(pwd)/examples/empty.lua:/deploy.lua" \
-            --env PASSWORD="${{ env.ALICE_PASSWORD }}" \
-            --env PRIVATE_KEY="${{ env.BOB_PRIVATE_KEY }}" \
-            ghcr.io/${{ github.repository }}:${{ needs.ettac-image.outputs.tag }} \
-            \
-            with-password with-public-key
+      - name: Build binaries
+        run: cargo build
+
+  format:
+    name: Formatting
+    runs-on: ubuntu-latest
+    needs: [ build ]
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Check formatting
+        run: cargo fmt --all --check
+
+  clippy:
+    name: Lints
+    runs-on: ubuntu-latest
+    needs: [ build ]
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Check lints
+        run: cargo clippy --all-targets --all-features -- -D warnings
 
   tests:
     name: Tests
@@ -137,7 +116,7 @@ jobs:
   integration:
     name: Integration tests
     runs-on: ubuntu-latest
-    needs: [ ssh-image ]
+    needs: [ ssh-image, build ]
 
     services:
       alice:
@@ -179,3 +158,49 @@ jobs:
 
       - name: Run tests
         run: cargo test --features integration
+
+  test-image:
+    name: Test image
+    runs-on: ubuntu-latest
+    needs: [ ssh-image, ettac-image, integration ]
+
+    services:
+      with-password:
+        image: ghcr.io/${{ github.repository }}:${{ needs.ssh-image.outputs.tag }}
+        credentials:
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+        ports: [ 7022:22 ]
+        env:
+          USERNAME: ${{ env.ALICE_USERNAME }}
+          PASSWORD: ${{ env.ALICE_PASSWORD }}
+
+      with-public-key:
+        image: ghcr.io/${{ github.repository }}:${{ needs.ssh-image.outputs.tag }}
+        credentials:
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+        ports: [ 7122:22 ]
+        env:
+          USERNAME: ${{ env.BOB_USERNAME }}
+          PUBLIC_KEY: ${{ env.BOB_PUBLIC_KEY }}
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Wait for SSH servers
+        run: |
+          timeout 120s sh -c 'until nc -z localhost 7022; do sleep 0.1; done'
+          timeout 120s sh -c 'until nc -z localhost 7122; do sleep 0.1; done'
+
+      - name: Run a recipe
+        run: |
+          docker run --rm \
+            --network host \
+            --volume "$(pwd)/examples:/examples" \
+            --volume "$(pwd)/examples/empty.lua:/deploy.lua" \
+            --env PASSWORD="${{ env.ALICE_PASSWORD }}" \
+            --env PRIVATE_KEY="${{ env.BOB_PRIVATE_KEY }}" \
+            ghcr.io/${{ github.repository }}:${{ needs.ettac-image.outputs.tag }} \
+            \
+            with-password with-public-key
