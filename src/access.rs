@@ -1,6 +1,6 @@
 use crate::Error;
-use crate::impl_error_try;
 use crate::context::{AuthMethod, SshCredentials};
+use crate::impl_error_try;
 use libssh_rs::{Session, SshKey, SshOption};
 use std::fmt::Debug;
 use std::io::Read;

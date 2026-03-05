@@ -1,7 +1,7 @@
-use std::env;
-use base64::prelude::*;
-use crate::context::Context;
 use crate::Error;
+use crate::context::Context;
+use base64::prelude::*;
+use std::env;
 
 pub fn env(name: &str, default: Option<String>) -> Option<String> {
     env::var(name).ok().or(default)
@@ -12,7 +12,10 @@ pub fn base64_encode(value: &str) -> String {
 }
 
 pub fn base64_decode(value: &str) -> Result<String, Error> {
-    let decoded = BASE64_STANDARD.decode(value).map_err(|_| Error::InvalidBase64(value.to_string()))?;
+    let decoded = BASE64_STANDARD
+        .decode(value)
+        .map_err(|_| Error::InvalidBase64(value.to_string()))?;
+
     let string = String::from_utf8(decoded).map_err(|_| Error::InvalidBase64(value.to_string()))?;
 
     Ok(string)
@@ -31,5 +34,9 @@ pub fn remote(_: &Context, command: &str) {
 }
 
 pub fn send(_: &Context, from: &str, dest: Option<&str>) {
-    println!("Sending file {} to remote host {}", from, dest.unwrap_or(from));
+    println!(
+        "Sending file {} to remote host {}",
+        from,
+        dest.unwrap_or(from)
+    );
 }

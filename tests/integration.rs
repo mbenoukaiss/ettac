@@ -1,3 +1,13 @@
 mod no_recipe;
 mod symfony;
 mod unknown_host;
+
+pub const BOB_PRIVATE_KEY: &str = "\
+    -----BEGIN OPENSSH PRIVATE KEY-----\n\
+    b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW\n\
+    QyNTUxOQAAACDJme4LaBLGQwPA6qH0G2J13ysV1DSbFrjrpt+cdmK+AgAAAJjlF8fM5RfH\n\
+    zAAAAAtzc2gtZWQyNTUxOQAAACDJme4LaBLGQwPA6qH0G2J13ysV1DSbFrjrpt+cdmK+Ag\n\
+    AAAEBF07KN5z24CX3MeVVUx7F7nF77CwxV4hKwGqRfRwKRlMmZ7gtoEsZDA8DqofQbYnXf\n\
+    KxXUNJsWuOum35x2Yr4CAAAADkNJIGRlcGxveW1lbnRzAQIDBAUGBw==\n\
+    -----END OPENSSH PRIVATE KEY-----\
+";

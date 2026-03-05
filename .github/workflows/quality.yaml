@@ -15,5 +15,15 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Clippy
+      - name: Check lints
         run: cargo clippy --all-targets --all-features -- -D warnings
+
+  format:
+    name: Formatting
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Check formatting
+        run: cargo fmt --all --check
