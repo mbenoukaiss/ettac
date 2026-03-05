@@ -124,7 +124,7 @@ fn add_setup_functions(lua: &Lua) -> Result<(), LuaError> {
             lua.create_table()?
         };
 
-        globals.set("defaults", merge_tables(&lua, &current_defaults, &data)?)?;
+        globals.set("defaults", merge_tables(&current_defaults, &data)?)?;
 
         Ok(())
     })?;
@@ -151,7 +151,7 @@ fn remove_setup_functions(lua: &Lua) -> Result<(), LuaError> {
     Ok(())
 }
 
-fn merge_tables(lua: &Lua, a: &LuaTable, b: &LuaTable) -> Result<LuaTable, LuaError> {
+fn merge_tables(a: &LuaTable, b: &LuaTable) -> Result<LuaTable, LuaError> {
     let out = a.clone();
 
     for pair in b.pairs::<String, Value>() {
@@ -180,7 +180,7 @@ fn merge_tables(lua: &Lua, a: &LuaTable, b: &LuaTable) -> Result<LuaTable, LuaEr
         }
 
         //both values are table so we can merge them
-        out.set(key_ref, merge_tables(lua, a_table, b_table)?)?;
+        out.set(key_ref, merge_tables(a_table, b_table)?)?;
     }
 
     Ok(out)

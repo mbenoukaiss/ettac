@@ -1,5 +1,8 @@
 #![feature(try_trait_v2)]
 
+//while not fully implemented
+#![allow(dead_code)]
+
 mod access;
 mod config;
 mod context;
@@ -31,8 +34,8 @@ fn with_lua(config: &'static Config) -> Result<(), Error> {
     let unknown_hosts = config
         .hosts
         .iter()
+        .filter(|host| !hosts.contains_key(*host))
         .cloned()
-        .filter(|host| !hosts.contains_key(host))
         .collect::<Vec<String>>();
 
     if !unknown_hosts.is_empty() {

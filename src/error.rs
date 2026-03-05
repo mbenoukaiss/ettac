@@ -1,6 +1,5 @@
 use crate::access::AccessError;
 use mlua::prelude::LuaError;
-use std::sync::Arc;
 use thiserror::Error as ThisError;
 
 #[macro_export]
@@ -43,26 +42,27 @@ pub enum Error {
     #[error("hosts `{0:?}` not found")]
     UnknownHosts(Vec<String>),
     #[error("invalid deploy config in setup(): {0}")]
-    SetupError(#[from] SetupError),
+    Setup(#[from] SetupError),
     #[error("script parsing error : {0}")]
     ScriptParsing(String),
     #[error("script runtime error : {0}")]
     ScriptRuntime(LuaError),
     #[error("ssh error : {0}")]
-    SshError(#[from] libssh_rs::Error),
+    Ssh(#[from] libssh_rs::Error),
     #[error("string `{0}` is not a valid base64 string")]
     InvalidBase64(String),
     #[error("io error: {0}")]
-    IoError(#[from] std::io::Error),
+    Io(#[from] std::io::Error),
     #[error("unparseable command: {0}")]
     UnparseableCommand(String),
     #[error("access error: {0}")]
-    AccessError(#[from] AccessError),
+    Access(#[from] AccessError),
 }
 
 impl_error_try!(Error);
 
 #[derive(ThisError, Debug)]
+#[allow(clippy::enum_variant_names)]
 pub enum SetupError {
     #[error("recipe is required")]
     MissingRecipe,
@@ -78,7 +78,7 @@ impl_error_try!(SetupError);
 
 impl From<Error> for LuaError {
     fn from(err: Error) -> Self {
-        LuaError::ExternalError(Arc::new(err))
+        LuaError::external(err)
     }
 }
 
